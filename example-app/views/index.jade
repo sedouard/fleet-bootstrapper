@@ -1,0 +1,8 @@
+extends layout
+
+block content
+  h1= title
+  p Welcome to #{title}
+  p If you're seeing this than you have sucessfully deployed the coreos cluster with fleet
+  p managing a scalable web application (this one!). To scale me, issue the command:
+  p fleetctl start example-app@2 or fleetctl start example-app@2 or however many you want

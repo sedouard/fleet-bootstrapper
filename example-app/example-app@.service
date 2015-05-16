@@ -1,0 +1,14 @@
+Description=Example High-Availabilty Web App
+After=router.service
+
+[Service]
+EnvironmentFile=/etc/environment
+ExecStartPre=/usr/bin/docker pull localhost:5000/example-app:latest
+ExecStart=/usr/bin/docker run --name example -p 3000:3000 localhost:5000/example-app:latest
+ExecStop=/usr/bin/docker stop example
+ExecStopPost=/usr/bin/docker kill example
+ExecStopPost=/usr/bin/docker rm example
+TimeoutStartSec=30m
+
+[X-Fleet]
+Conflicts=example-app@*.service

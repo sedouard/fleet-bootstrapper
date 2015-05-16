@@ -1,0 +1,11 @@
+#!/usr/bin/env python
+import subprocess
+print 'SSH arguments not given, generating certificate'
+with open(os.devnull, 'w') as shutup:
+  subprocess.call('openssl req -x509 -nodes -days 365 -newkey rsa:2048 -config cert.conf -keyout ssh-cert.key -out ssh-cert.pem', shell=True, stdout=shutup, stderr=shutup)
+  subprocess.call('chmod 600 ssh-cert.key', shell=True, stdout=shutup, stderr=shutup)
+  subprocess.call('openssl  x509 -outform der -in ssh-cert.pem -out ssh-cert.cer', shell=True, stdout=shutup, stderr=shutup)
+  thumbprint = subprocess.check_output('openssl x509 -in ssh-cert.pem -sha1 -noout -fingerprint | sed s/://g', shell=True)
+  ssh_thumb = thumbprint.split('=')[1].replace('\n', '')
+  ssh_cert = './ssh-cert.cer'
+print 'Generated SSH certificate with thumbprint ' + args.ssh_thumb

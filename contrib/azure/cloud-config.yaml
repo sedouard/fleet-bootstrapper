@@ -1,0 +1,21 @@
+#cloud-config
+
+coreos:
+  etcd:
+    # generate a new token for each unique cluster from https://discovery.etcd.io/new?size=3
+    # specify the intial size of your cluster with ?size=X
+    discovery: https://discovery.etcd.io/<DISCOVERY_URL>
+    # deployments across multiple cloud services will need to use $public_ipv4
+    addr: $private_ipv4:4001
+    peer-addr: $private_ipv4:7001
+    # give etcd more time if it's under heavy load - prevent leader election thrashing
+    peer-election-timeout: 2000
+    # heartbeat interval should ideally be 1/4 or 1/5 of peer election timeout, but that's a long time...
+    peer-heartbeat-interval: 200
+    # allow etcd to slow down at times
+    etcd_request_timeout: 3
+  units:
+    - name: etcd.service
+      command: start
+    - name: fleet.service
+      command: start

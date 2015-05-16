@@ -1,0 +1,47 @@
+version: 0.1
+log:
+  level: debug
+  fields:
+    service: registry
+    environment: development
+storage:
+    cache:
+        layerinfo: inmemory
+    maintenance:
+        uploadpurging:
+            enabled: false
+    azure:
+        accountname: sedouard
+        accountkey: MFNIYmXtk+DL3OlFH4kW+zWABAGtTgUcPW5jodk7+6Ia7hiDPo/0R68DDwlhIMUCafxBn1jxVCE+U+03m0aOtg==	
+        container: dockerimages
+http:
+    addr: :5000
+    secret: asecretforlocaldevelopment
+    debug:
+        addr: localhost:5001
+redis:
+  addr: localhost:6379
+  pool:
+    maxidle: 16
+    maxactive: 64
+    idletimeout: 300s
+  dialtimeout: 10ms
+  readtimeout: 10ms
+  writetimeout: 10ms
+notifications:
+    endpoints:
+        - name: local-8082
+          url: http://localhost:5003/callback
+          headers:
+             Authorization: [Bearer <an example token>]
+          timeout: 1s
+          threshold: 10
+          backoff: 1s
+          disabled: true
+        - name: local-8083
+          url: http://localhost:8083/callback
+          timeout: 1s
+          threshold: 10
+          backoff: 1s
+          disabled: true
+   

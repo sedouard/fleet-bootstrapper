@@ -1,0 +1,13 @@
+Description=Private Azure-backed Docker Registry
+After=docker.service
+
+[Service]
+ExecStartPre=/usr/bin/docker login -u DOCKER_HUB_USER -p <<DOCKER_HUB_PASSWORD>> -e <<DOCKER_HUB_EMAIL_ADDRESS>>
+ExecStartPre=/usr/bin/docker pull sedouard/registry:latest
+ExecStart=/usr/bin/docker run --name registry -p 5000:5000 sedouard/registry:latest
+ExecStop=/usr/bin/docker stop registry
+ExecStopPost=/usr/bin/docker kill registry
+ExecStopPost=/usr/bin/docker rm registry
+
+[X-Fleet]
+Global=true
