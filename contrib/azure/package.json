@@ -1,0 +1,16 @@
+{
+  "name": "coreos-with-fleet-multivm",
+  "version": "1.0.0",
+  "description": "<a href=\"https://azuredeploy.net/\" target=\"_blank\">     <img src=\"http://azuredeploy.net/deploybutton.png\"/> </a>",
+  "main": "deploy.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "inquirer": "^0.8.5",
+    "rsvp": "^3.0.18",
+    "unirest": "^0.4.2"
+  }
+}

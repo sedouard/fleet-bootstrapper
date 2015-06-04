@@ -1,0 +1,23 @@
+﻿{
+    "newStorageAccountName": {
+        "value": ""
+    },
+    "publicDomainName": {
+        "value": ""
+    },
+    "vmSize": {
+        "value": "Standard_A3"
+    },
+    "adminUserName": {
+        "value": "core"
+    },
+    "sshKeyData": {
+        "value": ""
+    },
+    "customData": {
+        "value": ""
+    },
+    "numberOfNodes": {
+        "value": 3
+    }
+}

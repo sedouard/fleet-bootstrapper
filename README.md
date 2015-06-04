@@ -93,62 +93,139 @@ CoreOS, an operating system for distributed clusters will be required. [Fleet]()
 
 #### Azure
 
-Using **Azure Resource Manager**:
+##### Authentication
 
-Checkout the [Azure Resource Manager CoreOS MultiVM Template]() and be sure to use [this file](contrib/azure/cloud-config.yaml) for the CoreOS cloud-config.
+First after you have an Azure account, you'll need to setup an *Azure Active Directory* to login to your subscription from the CLI. First go to the classic portal at [manage.windowsazure.com](https://manage.windowsazure.com).
 
-Using the v1 **Service Manager**:
+On the left ribbon, select 'Active Directory' to pull up the active directories dashboard. Check to see that there isn't already an existing Azure Active Directory (AAD) with the smae name as your subscription. For example, if you signed up for Azure with `steven@gmail.com` an existing directory would be `stevengmail.onmicrosoft.com`.
 
-To deploy your CoreOS server on Azure using the legacy Service Manager issue the following commands:
+To create a new AAD for your current subscription, make sure you are logged in as the primary azure administrator and click the '+' on the bottom left and select a new directory and click 'Custom Create':
 
-```bash
-# install python
-brew install python
-# install necessary python libraries
-sudo pip install azure pyyaml
-# generate the service management certificate
-cd contrib/azure
-# modify cert.config with your 
-./generate-mgmt-cert.sh
-# upload the generated azure-cert.cer file to your managment certificates via the azure portal
+![](img/ss7.png)
+
+Select the name of your directory which should be the same name as the directory on your subscription. You can find the name on the top right of the portal dashboard:
+
+![](img/ss8.png) 
+
+![](img/ss11.png)
+
+After you've created your subscription you can add a new user to it. It doesn't matter what the user name is:
+
+![](img/ss12.png)
+
+You'll get a temporary password for the user:
+
+![](img/ss6.png)
+
+Open up a new in-private/incognito browser window, then go to [manage.windowsazure.com](http://manage.windowsazure.com) and authenticate with the username and password. It'll then prompt you to change the password.
+
+Now you can login to that account using the azure cli:
+
+```
+# install the cli if you don't already have it
+npm install azure-cli -g
+azure login
+username: someuser
+password: ***
+-info:    Added subscription Windows Azure MSDN - Visual Studio Ultimate       
+info:    Setting subscription Windows Azure MSDN - Visual Studio Ultimate as default
++
+info:    login command OK
 ```
 
-Create an affinity group if you already don’t have one via the azure portal [manage.windowsazure.com](http://manage.windowsazure.com). Supply it in quotes with the --affinity-group parameter. Although using an affinity group is not mandatory, it is highly recommended since it tells the Azure fabric to place all VMs in the cluster physically close to each other, reducing inter-node latency by a great deal. If you don’t want ot use affinity groups, specify a region for Azure to use with a --location parameter. The default is "West US". If you specify both parameters, location will be ignored. Please note that the script will not create an affinity group by itself; it expects the affinity group exists.
+##### Provisioning the template
 
-```bash
-cd contrib/azure
-./azure-coreos-cluster [cloud service name]
-     --subscription [subscription id]
-     --azure-cert azure-cert.pem
-     --num-nodes [number of nodes, odd number]
-     --affinity-group [affinity group name]
-     --vm-size [VM Size, A3 and better recommended]
-     --http
-     --blob-container-url https://[blob container].blob.core.windows.net/vhds/
-     --data-disk
-     --custom-data cloud-config.yaml
+To provision your CoreOS cluster, first modify the `./contrib/azure/cert.conf`[./contrib/azure/cert.conf] with your organization details for the ssh keys to be generated for your new machines:
+
+```
+[ req ]
+prompt = no
+default_bits = 2048
+encrypt_key = no
+distinguished_name = req_distinguished_name
+
+string_mask = utf8only
+
+[ req_distinguished_name ]
+O=My Company
+L=San Francisco
+ST=CA
+C=US
+CN=www.test.com
 ```
 
-This script takes a few minutes depending on how large of a cluster you are provisioning.
+It's not very important what the actual names are, since we won't be using these keys for SSL, but just the ssh connection. Now go into the `./contrib/azure` directory and you can choose to modify the CoreOS template [parameters file](./contrib/azure/deploy-params-template.json) or you can enter them when you exwecute `gentemplate.js`:
 
-Now that your CoreOS cluster is installed you might want to either install [fleetctl](http://github.com/coreos/fleet) for your platform (supports osx and linux) or SSH into any one of your CoreOS nodes and use `fleetctl` there which comes installed.
+```
+{
+    "newStorageAccountName": {
+        "value": ""
+    },
+    "publicDomainName": {
+        "value": ""
+    },
+    "vmSize": {
+        "value": "Standard_A3"
+    },
+    "adminUserName": {
+        "value": "core"
+    },
+    "sshKeyData": {
+        "value": ""
+    },
+    "customData": {
+        "value": ""
+    },
+    "numberOfNodes": {
+        "value": 3
+    }
+}
 
-Fleetctl is what allows you to deploy services across your entire cluster. We'll use it later in the guide.
+```
+
+Now execute the parameters file generation script:
+
+```
+# generate parameters file
+node gentemplate.js
+# depending on what you filled out in ./contrib/azure/deploy-params-template.json
+# you may or may not be asked for parameter values
+```
+
+This script will generate new ssh key if `./contrib/azure/ssh-key.pem` doesn't exist as well as generate a new discovery token link for coreos and base64 encode both of these and place them in the template file.
+
+Now, create a new resource, and deploy the template:
+
+```
+azure create group someresourcegroup
+azure group deployment create someresourcegroup --template-file azuredeploy.json --parameters-file azure-deploy-params.json
+```
+
+You can check the status of the deployment at [portal.azure.com](https://portal.azure.com) by checking under 'Resource Groups'.
+
+After the resource group is provisioned you can access your nodes by doing:
+
+```
+# add the ssh identity
+ssh-add ./ssh-cert.key
+# replace 'westus' with the name of the datacenter you deployed to
+# replace adminUserName with your actual admin user name specified
+# by the parameters json
+# Because we are behind a public load balancer you must access your
+# machines SSH ports starting from 22000 => Node0, 22001 => Node2, etc.
+ssh core@sedouard-fleet-bootstrap.westus.cloudapp.azure.com -p 22000
+```
 
 ### Starting the Private Docker Repo
 
-We'll need to create a registry that fleet cna deploy our apps from. To do this we'll use the Azure Storage [adapter]() for the docker registry server in order to keep our image data in one central place.
+We'll need to create a registry that fleet cna deploy our apps from. To do this we'll use the Azure Storage [adapter](http://azure.microsoft.com/blog/2014/11/11/deploying-your-own-private-docker-registry-on-azure/) for the docker registry server in order to keep our image data in one central place.
 
-Change the file [contrib/azure/config.yaml](contrib/azure/config.yaml) to contain your storage account name, key and the container you would like the registry to store images in. The container will be created by the registry server if it doesn't already exist.
+To build the registry image do:
 
 ```
-azure:
-   accountname: <<STORAGE_ACCOUNT_NAME>>
-   accountkey: <<STORAGE_ACCOUNT_KEY>>
-   container: <<DOCKER_IMAGE_CONTAINER>>
+cd ./registry
+docker build .
 ```
-
-Copy thie file to [registry/distribtuion/cmd/registry/config.yaml](registry/distribtuion/cmd/registry/config.yaml) overriding the existing file.
 
 Ensure you have an account at [hub.docker.com](http://hub.docker.com) and create a private repository. Docker hub allows for one free private repository and we'll use this repo to host our own private registry server image attached to azure storage.
 
@@ -156,7 +233,7 @@ Build the registry server docker image by doing:
 
 ```bash
 cd ./distribution
-docker build -t <docker hub username>/<name of docker repo>:latest
+docker build -t <docker_hub_username>/registry:latest
 ```
 
 The `:latest` part is just a tag for the image and can be an arbitrary name.
@@ -172,9 +249,9 @@ Description=Private Azure-backed Docker Registry
 After=docker.service
 
 [Service]
-ExecStartPre=/usr/bin/docker login -u <<DOCKER_HUB_USER>> -p <<DOCKER_HUB_PASSWORD>> -e <<DOCKER_HUB_EMAIL_ADDRESS>>
+ExecStartPre=/usr/bin/docker login -u DOCKER_HUB_USER -p <<DOCKER_HUB_PASSWORD>> -e <<DOCKER_HUB_EMAIL_ADDRESS>>
 ExecStartPre=/usr/bin/docker pull sedouard/registry:latest
-ExecStart=/usr/bin/docker run --name registry -p 5000:5000 sedouard/registry:latest
+ExecStart=/usr/bin/docker run --name registry -p 5000:5000 <your_dockerhub_username>/registry:latest -e SETTINGS_FLAVOR=azureblob -e AZURE_STORAGE_ACCOUNT_NAME="<account name>" -e AZURE_STORAGE_ACCOUNT_KEY="<account key>" -e AZURE_STORAGE_CONTAINER=registry
 ExecStop=/usr/bin/docker stop registry
 ExecStopPost=/usr/bin/docker kill registry
 ExecStopPost=/usr/bin/docker rm registry
@@ -183,11 +260,17 @@ ExecStopPost=/usr/bin/docker rm registry
 Global=true
 ```
 
-Obviously, you should replace the `<<` tagged portions with your docker account credentials. There's a variety of ways you can do this for example you can edit environment variables by provisioning CoreOS with an `EnvironmentFile` at `etc/environment` and specifying the file for the `EnviornmentFile` key in the `[Service]` section of the unit file.
+You should replace the `<>` tagged portions with your docker account and azure storage account credentials. It's also possible to expose environment variables by provisioning CoreOS with an `EnvironmentFile` at `etc/environment` and specifying the file for the `EnviornmentFile` key in the `[Service]` section of the unit file.
 
 You can also simply replace these values at deployment time by writing a script that inserts the actual credentials.
 
-To deploy the registry do:
+To deploy the registry you should first install the `fleetctl` client locally. You can build `fleetctl` and install it easily on OSX by doing:
+
+```
+brew install fleetctl
+```
+
+Otherwise its pretty easy to build fleetctl from [source](https://github.com/coreos/fleet) sometimes you'll need to do this even on OSX if the version you need isn't listed in homebrew.
 
 ```bash
 cd ./registry
@@ -273,13 +356,13 @@ server {
 }
 ```
 
-Using the templating above the nginx configuration file `apps.conf` will be generated. So you can deploy any number of applications with any number of instances per app and nginx will automatically update its configuration to route your new app and instances.
+Using the above the nginx [`confd`](https://github.com/kelseyhightower/confd) template configuration file `apps.conf` will be generated. So you can deploy any number of applications with any number of instances per app and nginx will automatically update its configuration to route your new app and instances appropiately as their status changes in the `etcd` registry.
 
 To deploy the nginx router, modify the template with your domain name and build the image:
 
 ```bash
 cd ./router
-docker build -t localhost:5000/nginx_lb_router:latest
+docker build -t localhost:5000/nginx_lb_router:latest .
 ```
 Note: You **must** use your own domain name.
 
@@ -288,8 +371,7 @@ Now to deploy the image you'll have to startup the registry server locally by ru
 ```bash
 docker run <docker hub username>/<name of docker repo>:latest
 # if you're not on linux, you'll have to ssh into the boot2docker vm
-ssh docker@$(boot2docker ip)
-# password: tcuser
+boot2docker ssh
 # now push the image to azure storage via the local registry server
 docker push localhost:5000/nginx_lb_router:latest
 ```
@@ -320,7 +402,7 @@ cd ./router
 fleetctl start nginx_lb_router
 ```
 
-After some time, you'll see the `nginx_lb_router` service running
+After some time, you'll see the `nginx_lb_router` service running on each node.
 
 ```
 fleetctl list-units

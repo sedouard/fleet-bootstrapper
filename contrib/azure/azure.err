@@ -1,0 +1,13 @@
+Thu Jun 04 2015 14:07:57 GMT-0700 (PDT):
+[TypeError: Cannot read property 'Symbol(formatted stack trace)' of undefined]
+TypeError: Cannot read property 'Symbol(formatted stack trace)' of undefined
+    at Error.stack (/usr/local/lib/node_modules/azure-cli/node_modules/streamline/lib/callbacks/runtime.js:224:27)
+    at /usr/local/lib/node_modules/azure-cli/node_modules/eyes/lib/eyes.js:183:19
+    at Array.forEach (native)
+    at stringifyObject (/usr/local/lib/node_modules/azure-cli/node_modules/eyes/lib/eyes.js:181:10)
+    at /usr/local/lib/node_modules/azure-cli/node_modules/eyes/lib/eyes.js:129:38
+    at stringify (/usr/local/lib/node_modules/azure-cli/node_modules/eyes/lib/eyes.js:131:7)
+    at Object.eyes.inspect (/usr/local/lib/node_modules/azure-cli/node_modules/eyes/lib/eyes.js:53:16)
+    at Object.log.json (/usr/local/lib/node_modules/azure-cli/lib/util/logging.js:84:22)
+    at callback (/usr/local/lib/node_modules/azure-cli/lib/cli.js:211:17)
+    at ___ (/usr/local/lib/node_modules/azure-cli/lib/commands/login._js:107:137)

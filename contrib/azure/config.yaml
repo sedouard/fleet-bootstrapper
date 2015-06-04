@@ -1,4 +1,4 @@
-# This file to be placed in registry/distribution/cmd/reigstry/config.yml
+# This file to be placed in registry/distribution/cmd/registry/config.yml
 version: 0.1
 log:
   level: debug
