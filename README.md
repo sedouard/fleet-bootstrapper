@@ -83,7 +83,7 @@ This means that the actual container which provides the service doesn't necessar
 
 Furthermore, the Azure load balancer load balances requests amongst our router, but each **router** service unit load balances the containers for each service.
   
-## How to Deploy High Availabilty Apps to Azure using [CoreOS](http://coreos.com) with [Fleet](https://github.com/coreos/fleet) & [Etcd](http://github.com/coreos/etcd)
+## How to Deploy High Availabilty Apps to [Azure](http://azure.com) using [CoreOS](http://coreos.com) with [Fleet](https://github.com/coreos/fleet) & [Etcd](http://github.com/coreos/etcd)
 
 This repository has everything you need to implement the architecture layed out above.
 
