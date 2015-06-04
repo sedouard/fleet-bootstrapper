@@ -135,7 +135,7 @@ info:    login command OK
 
 ##### Provisioning the template
 
-To provision your CoreOS cluster, first modify the `./contrib/azure/cert.conf`[./contrib/azure/cert.conf] with your organization details for the ssh keys to be generated for your new machines:
+To provision your CoreOS cluster, first modify the [`./contrib/azure/cert.conf`](./contrib/azure/cert.conf) with your organization details for the ssh keys to be generated for your new machines:
 
 ```
 [ req ]
@@ -154,7 +154,7 @@ C=US
 CN=www.test.com
 ```
 
-It's not very important what the actual names are, since we won't be using these keys for SSL, but just the ssh connection. Now go into the `./contrib/azure` directory and you can choose to modify the CoreOS template [parameters file](./contrib/azure/deploy-params-template.json) or you can enter them when you exwecute `gentemplate.js`:
+It's not very important what the actual names are, since we won't be using these keys for SSL, but just the ssh connection. Now go into the `./contrib/azure` directory and you can choose to modify the CoreOS template [parameters file](./contrib/azure/deploy-params-template.json) or you can enter them when you execute `gentemplate.js`:
 
 ```
 {
@@ -187,18 +187,30 @@ Now execute the parameters file generation script:
 
 ```
 # generate parameters file
+cd ./contrib/azure
 node gentemplate.js
-# depending on what you filled out in ./contrib/azure/deploy-params-template.json
-# you may or may not be asked for parameter values
 ```
 
-This script will generate new ssh key if `./contrib/azure/ssh-key.pem` doesn't exist as well as generate a new discovery token link for coreos and base64 encode both of these and place them in the template file.
+Depending on what you filled out in `./contrib/azure/deploy-params-template.json` you may or may not be prompted for paramter values. This script will generate new ssh key if `./contrib/azure/ssh-key.pem` doesn't exist as well as generate a new discovery token link for coreos, base64 encode both of these and place them in the template file.
 
 Now, create a new resource, and deploy the template:
 
 ```
 azure create group someresourcegroup
 azure group deployment create someresourcegroup --template-file azuredeploy.json --parameters-file azure-deploy-params.json
+info:    Executing command group deployment create
++ Initializing template configurations and parameters                          
++ Creating a deployment                                                        
+info:    Created template deployment "azuredeploy"
++ Registering providers                                                        
+data:    DeploymentName     : azuredeploy
+data:    ResourceGroupName  : sedouard-fleet-bootstrap
+data:    ProvisioningState  : Accepted
+data:    Timestamp          : 2015-06-04T20:44:16.2904614Z
+data:    Mode               : Incremental
+data:    Name                   Type    Value
+...
+info:    group deployment create command OK
 ```
 
 You can check the status of the deployment at [portal.azure.com](https://portal.azure.com) by checking under 'Resource Groups'.
@@ -208,37 +220,25 @@ After the resource group is provisioned you can access your nodes by doing:
 ```
 # add the ssh identity
 ssh-add ./ssh-cert.key
-# replace 'westus' with the name of the datacenter you deployed to
-# replace adminUserName with your actual admin user name specified
-# by the parameters json
-# Because we are behind a public load balancer you must access your
-# machines SSH ports starting from 22000 => Node0, 22001 => Node2, etc.
 ssh core@sedouard-fleet-bootstrap.westus.cloudapp.azure.com -p 22000
 ```
+Replace `westus` with the name of the datacenter you deployed to and `adminUserName` with your actual admin user name specified by the parameters json. Because we are behind a public load balancer you must access your machines SSH ports starting from 22000 => Node0, 22001 => Node2, etc.
 
 ### Starting the Private Docker Repo
 
-We'll need to create a registry that fleet cna deploy our apps from. To do this we'll use the Azure Storage [adapter](http://azure.microsoft.com/blog/2014/11/11/deploying-your-own-private-docker-registry-on-azure/) for the docker registry server in order to keep our image data in one central place.
+We'll need to create a registry that fleet can deploy our apps from. To do this we'll use the Azure Storage [adapter](http://azure.microsoft.com/blog/2014/11/11/deploying-your-own-private-docker-registry-on-azure/) for the docker registry server in order to keep our image data in one central place.
 
-To build the registry image do:
+To build the registry which is backed by azure storage just do:
 
 ```
 cd ./registry
-docker build .
+docker build -t <docker_hub_username>/registry:latest .
 ```
-
-Ensure you have an account at [hub.docker.com](http://hub.docker.com) and create a private repository. Docker hub allows for one free private repository and we'll use this repo to host our own private registry server image attached to azure storage.
-
-Build the registry server docker image by doing:
-
-```bash
-cd ./distribution
-docker build -t <docker_hub_username>/registry:latest
-```
-
 The `:latest` part is just a tag for the image and can be an arbitrary name.
 
-Finally just do `docker push <docker hub username>/<name of docker repo>:latest`. After some time your private registry image will be in your private repository hosted by docker hub. This will allow your private registry to be easily deployed.
+Ensure you have an account at [hub.docker.com](http://hub.docker.com) and create a repository, it can be public or private. We'll use this repo to host our own private registry server image. Keep in mind, there isn't any private information in the image so its fine to use a public image.
+
+Finally just do `docker push <docker hub username>/<name of docker repo>:latest`. After some time your private registry image will be in your repository hosted by docker hub. This will allow your private registry to be easily deployed.
 
 #### Deploying the private registry
 
@@ -291,7 +291,7 @@ Fleet knows to deploy the registry to each node because of hte `Global=true` set
 
 ### Deploying the Router
 
-Now that our private registry is up, we can deploy our router to the private repository to the cluster. This will allow for us to deploy web applications.
+Now that our private registry is up, we can deploy our router image to the cluster via the private registry. This will allow for us to deploy web applications.
 
 First you'll need to build the router. The router is an [nginx](http://nginx.com) server with a configuration file that is dynamically updated from changes in `etcd` using a [confd](https://github.com/kelseyhightower/confd) template in [nginx/templates/apps.tmpl](nginx/templates/apps.tmpl):
 
@@ -416,15 +416,15 @@ registry.service		b5815f25.../100.73.54.68	active	running
 
 Now the cluster is ready to start running web applications (and non-web applications, too).
 
-### Deploying an App
+### Deploying a High Availability App
 
 This repo comes with a simple Node.js express application to demonstrate how to deploy an application. To deploy the application you'll need to build and push the image for the app as we did with the router:
 
 ```
 cd ./example-app
 docker build -t localhost:5000/example-app:latest
-# log into boot2docker
-ssh docker@$(boot2docker ip)
+# log into boot2docker, Windows & OSX Only
+boot2docker ssh
 docker push localhost:5000/example-app:latest
 ```
 
@@ -447,7 +447,7 @@ TimeoutStartSec=30m
 Conflicts=example-app@*.service
 ```
 
-As mentioned in the 'How it Wors' section this unit file will create a model (indicated by the '@' in the file name) and ensure that only one instance runs per node. The app will pull from the central image store via the registry running at localhost:5000. 
+As mentioned in the **How it Works** section this unit file will create a model (indicated by the '@' in the file name) and ensure that only one instance runs per node. The app will pull from the central image store via the registry running at localhost:5000. 
 
 Deploy 2 instances of this app by doing the following commands:
 
@@ -458,7 +458,7 @@ fleetctl start example-app@1
 fleetctl start example-app@2
 ```
 
-Now `fleetctl list-units` should show the apps running on two different machines:
+Now `fleetctl list-units` should show the app instances running on two different machines:
 
 ```
 fleetctl list-units
@@ -472,7 +472,7 @@ registry.service		8abff2e7.../100.73.4.95		active	running
 registry.service		b5815f25.../100.73.54.68	active	running
 ```
 
-However browsing to `example-app.your_domain_name.com` won't work because the router has no idea this app and its instances exist.
+However browsing to `example-app.your_domain_name.com` won't work because the router has no idea this app or its instances exist.
 
 You need to deploy the 'sidekick' service for each instance defined by the unit file [./exampleapp/example-app-discovery@.service](./exampleapp/example-app-discovery@.service):
 
@@ -531,7 +531,7 @@ This service template will broadcast the instance under the default `/services/w
     }
 ```
 
-Nginx will build any number of upstreams for each application deployed. 
+Nginx will build any number of upstreams for each application deployed. Allowing for any number of apps and instances.
 
 The `Machineof` attribute in the service file tells fleet to place it on the same machine as the specfied service instance and the `BindsTo` attribute makes so that the sidekick will stop broadcasting if the application goes down, preventing nginx from sending requests to a dead container.
 
@@ -607,12 +607,16 @@ $>docker exec router cat /etc/nginx/conf.d/apps.conf
         proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504 http_404;
       }
     }
-    
-# confirm the app is still up!
-$> curl http://example-app.your_domain.com
+```
+
+You can confirm the app is still running by curling the url again:
+
+```
+# we're still running!
+curl http://example-app.your_domain.com
 <!DOCTYPE html><html><head><title>Express</title><link rel="stylesheet" href="/stylesheets/style.css"></head><body><h1>Express</h1><p>Welcome to Express</p></body></html>
 ```
 
 ## Run Your App
 
-To run your own instance of your apps just be sure to follow the same template as `example-app`. Be sure to pick another port number besides `3000` and it should just 'work'.
+To run your own instance of your apps just be sure to follow the same template as `example-app`. Just be sure to pick another port number besides `3000`.
