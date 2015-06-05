@@ -188,6 +188,7 @@ Now execute the parameters file generation script:
 ```
 # generate parameters file
 cd ./contrib/azure
+npm install
 node gentemplate.js
 ```
 
