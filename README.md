@@ -197,8 +197,8 @@ Depending on what you filled out in `./contrib/azure/deploy-params-template.json
 Now, create a new resource, and deploy the template:
 
 ```
-azure create group someresourcegroup
-azure group deployment create someresourcegroup --template-file azuredeploy.json --parameters-file azure-deploy-params.json
+azure group create <your_resource_name> "West US"
+azure group deployment create <your_resource_name> --template-file azuredeploy.json --parameters-file azure-deploy-params.json
 info:    Executing command group deployment create
 + Initializing template configurations and parameters                          
 + Creating a deployment                                                        
