@@ -221,7 +221,8 @@ After the resource group is provisioned you can access your nodes by doing:
 ```
 # add the ssh identity
 ssh-add ./ssh-cert.key
-ssh core@sedouard-fleet-bootstrap.westus.cloudapp.azure.com -p 22000
+# replace with values from azure-deploy-params.json
+ssh <adminUserName>@<publicDomainName>.<resource_group_location>.cloudapp.azure.com -p 22000
 ```
 Replace `westus` with the name of the datacenter you deployed to and `adminUserName` with your actual admin user name specified by the parameters json. Because we are behind a public load balancer you must access your machines SSH ports starting from 22000 => Node0, 22001 => Node1, etc.
 
