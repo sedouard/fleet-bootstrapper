@@ -226,6 +226,27 @@ ssh <adminUserName>@<publicDomainName>.<resource_group_location>.cloudapp.azure.
 ```
 Replace `westus` with the name of the datacenter you deployed to and `adminUserName` with your actual admin user name specified by the parameters json. Because we are behind a public load balancer you must access your machines SSH ports starting from 22000 => Node0, 22001 => Node1, etc.
 
+To confirm the cluster is alive and well you'll need to install `fleetctl` on your local machine. ( You can also just use fleetctl on one of the CoreOS machines but you really should have it installed locally).
+
+You can build `fleetctl` from source or install it easily on OSX using `brew`:
+```
+brew install fleetctl
+```
+
+Otherwise its pretty easy to build fleetctl from [source](https://github.com/coreos/fleet) sometimes you'll need to do this even on OSX if the version you need isn't listed in homebrew.
+
+Now confirm fleet is up and running:
+
+```
+fleetctl list-machines
+MACHINE		IP		METADATA
+1b0f6abc...	10.0.0.5	-
+bbd69d7c...	10.0.0.4	-
+df7686a1...	10.0.0.6	-
+```
+
+All of your machines in your cluster should be reporting.
+
 ### Starting the Private Docker Repo
 
 We'll need to create a registry that fleet can deploy our apps from. To do this we'll use the Azure Storage [adapter](http://azure.microsoft.com/blog/2014/11/11/deploying-your-own-private-docker-registry-on-azure/) for the docker registry server in order to keep our image data in one central place.
@@ -266,13 +287,7 @@ You should replace the `<>` tagged portions with your docker account and azure s
 
 You can also simply replace these values at deployment time by writing a script that inserts the actual credentials.
 
-To deploy the registry you should first install the `fleetctl` client locally. You can build `fleetctl` and install it easily on OSX by doing:
-
-```
-brew install fleetctl
-```
-
-Otherwise its pretty easy to build fleetctl from [source](https://github.com/coreos/fleet) sometimes you'll need to do this even on OSX if the version you need isn't listed in homebrew.
+Now deploy the registry using `fleetctl`.
 
 ```bash
 cd ./registry
