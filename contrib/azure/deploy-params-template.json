@@ -19,5 +19,8 @@
     },
     "numberOfNodes": {
         "value": 3
-    }
+    },
+    "coreOSChannel": {
+      "value": "Beta"
+    },
 }

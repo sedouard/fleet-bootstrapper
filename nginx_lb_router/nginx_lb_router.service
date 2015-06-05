@@ -2,6 +2,9 @@ Description=Nginx Load Balancer and Router
 After=registry.service
 
 [Service]
+TimeoutStartSec=0
+Restart=always
+RestartSec=10s
 EnvironmentFile=/etc/environment
 ExecStartPre=/usr/bin/docker pull localhost:5000/nginx_lb_router:latest
 ExecStart=/usr/bin/docker run --name router -p 80:80 -p 443:443 -e "HOST_IP=${COREOS_PRIVATE_IPV4}" -e ETCD_PORT=4001 localhost:5000/nginx_lb_router:latest

@@ -1,3 +1,9 @@
 [submodule "registry/distribution"]
 	path = registry/distribution
 	url = https://github.com/docker/distribution.git
+[submodule "registry/--force"]
+	path = registry/--force
+	url = https://github.com/docker/distribution.git
+[submodule "registry/-force"]
+	path = registry/-force
+	url = https://github.com/docker/distribution.git

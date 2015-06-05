@@ -2,12 +2,16 @@ Description=Private Azure-backed Docker Registry
 After=docker.service
 
 [Service]
-ExecStartPre=/usr/bin/docker login -u DOCKER_HUB_USER -p <<DOCKER_HUB_PASSWORD>> -e <<DOCKER_HUB_EMAIL_ADDRESS>>
+TimeoutStartSec=0
+Restart=always
+RestartSec=10s
+ExecStartPre=/usr/bin/docker login -u sedouard -p d0cker -e steven.edouard1@gmail.com
 ExecStartPre=/usr/bin/docker pull sedouard/registry:latest
-ExecStart=/usr/bin/docker run --name registry -p 5000:5000 <your_dockerhub_username>/registry:latest -e SETTINGS_FLAVOR=azureblob -e AZURE_STORAGE_ACCOUNT_NAME="<account name>" -e AZURE_STORAGE_ACCOUNT_KEY="<account key>" -e AZURE_STORAGE_CONTAINER=registry
+ExecStart=/usr/bin/docker run --name registry -p 5000:5000 sedouard/registry:latest
 ExecStop=/usr/bin/docker stop registry
 ExecStopPost=/usr/bin/docker kill registry
 ExecStopPost=/usr/bin/docker rm registry
 
 [X-Fleet]
 Global=true
+
