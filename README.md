@@ -125,7 +125,7 @@ Now you can login to that account using the azure cli:
 # install the cli if you don't already have it
 npm install azure-cli -g
 azure login
-username: someuser
+username: someuser@stevegmail.onmicrosoft.com
 password: ***
 -info:    Added subscription Windows Azure MSDN - Visual Studio Ultimate       
 info:    Setting subscription Windows Azure MSDN - Visual Studio Ultimate as default
