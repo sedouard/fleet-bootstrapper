@@ -89,7 +89,7 @@ This repository has everything you need to implement the architecture layed out 
 
 ### Provisioning CoreOS
 
-CoreOS, an operating system for distributed clusters will be required. [Fleet]() and [etcd]() services come preinstalled which is what this bootstrapper uses.
+CoreOS, an operating system for distributed clusters will be required. [Fleet]() and [etcd]() services will be included automatically by our `contrib/azure/cloud-config.yaml`.
 
 #### Azure
 
