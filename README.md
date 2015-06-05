@@ -178,10 +178,14 @@ It's not very important what the actual names are, since we won't be using these
     },
     "numberOfNodes": {
         "value": 3
-    }
+    },
+    "coreOSChannel": {
+   		"value": "Beta"
+   	 }
 }
 
 ```
+**Note:** During the writing of this Docker 1.6 and above is required. CoreOS Beta comes with the required version, and the Stable channel does not.
 
 Now execute the parameters file generation script:
 
@@ -235,6 +239,26 @@ brew install fleetctl
 
 Otherwise its pretty easy to build fleetctl from [source](https://github.com/coreos/fleet) sometimes you'll need to do this even on OSX if the version you need isn't listed in homebrew.
 
+
+Get your public IP address of your load balancer by doing:
+
+```
+host <publicDomainName>.<resource_datacenter_location>.cloudapp.azure.com
+```
+
+For example:
+
+```
+host sedouard-fleet.westus.cloudapp.azure.com
+sedouard-fleet.westus.cloudapp.azure.com has address 104.210.37.2
+```
+
+Set the FLEETCTL_TUNNEL variable:
+
+```
+export FLEETCTL_TUNNEL=<your public ip>:22000
+```
+
 Now confirm fleet is up and running:
 
 ```
@@ -245,23 +269,52 @@ bbd69d7c...	10.0.0.4	-
 df7686a1...	10.0.0.6	-
 ```
 
-All of your machines in your cluster should be reporting.
+All of your machines in your cluster should be reporting. Finally setup a public domain name if you don't already have one from a service like [namecheap.com](http://namecheap.com).
+
+Set an A record from your domain pointing to the IP address returned by the `host` command above.
 
 ### Starting the Private Docker Repo
 
-We'll need to create a registry that fleet can deploy our apps from. To do this we'll use the Azure Storage [adapter](http://azure.microsoft.com/blog/2014/11/11/deploying-your-own-private-docker-registry-on-azure/) for the docker registry server in order to keep our image data in one central place.
+We'll need to create a registry that fleet cna deploy our apps from. To do this we'll use the Azure Storage [adapter]() for the docker registry server in order to keep our image data in one central place.
 
-To build the registry which is backed by azure storage just do:
+Change the file [contrib/azure/config.yaml](contrib/azure/config.yaml) to contain your storage account name, key and the container you would like the registry to store images in. The container will be created by the registry server if it doesn't already exist.
 
 ```
-cd ./registry
-docker build -t <docker_hub_username>/registry:latest .
+azure:
+   accountname: <<STORAGE_ACCOUNT_NAME>>
+   accountkey: <<STORAGE_ACCOUNT_KEY>>
+   container: <<DOCKER_IMAGE_CONTAINER>>
 ```
+
+Copy thie file to [registry/distribtuion/cmd/registry/config.yaml](registry/distribtuion/cmd/registry/config.yaml) overriding the existing file.
+
+```
+cp ./contrib/azure/config.yml ./registry/distribution/cmd/registry
+```
+
+Ensure you have an account at [hub.docker.com](http://hub.docker.com) and create a private repository. Docker hub allows for one free private repository and we'll use this repo to host our own private registry server image attached to azure storage.
+
+Build the registry server docker image by doing:
+
+```bash
+cd ./registry/distribution
+# as of this writing current version was registry 2.0
+git checkout release/2.0
+export DOCKER_BUILDTAGS='include_azure'
+docker build -t <docker hub username>/registry:latest .
+```
+
 The `:latest` part is just a tag for the image and can be an arbitrary name.
 
 Ensure you have an account at [hub.docker.com](http://hub.docker.com) and create a repository, it can be public or private. We'll use this repo to host our own private registry server image. Keep in mind, there isn't any private information in the image so its fine to use a public image.
 
-Finally just do `docker push <docker hub username>/<name of docker repo>:latest`. After some time your private registry image will be in your repository hosted by docker hub. This will allow your private registry to be easily deployed.
+Finally just push the image to your private docker hub repo:
+
+```
+docker push <docker hub username>/registry:latest
+``` 
+
+After some time your private registry image will be in your repository hosted by docker hub. This will allow your private registry to be easily deployed.
 
 #### Deploying the private registry
 
@@ -272,9 +325,12 @@ Description=Private Azure-backed Docker Registry
 After=docker.service
 
 [Service]
-ExecStartPre=/usr/bin/docker login -u DOCKER_HUB_USER -p <<DOCKER_HUB_PASSWORD>> -e <<DOCKER_HUB_EMAIL_ADDRESS>>
+TimeoutStartSec=0
+Restart=always
+RestartSec=10s
+ExecStartPre=/usr/bin/docker login -u sedouard -p d0cker -e steven.edouard1@gmail.com
 ExecStartPre=/usr/bin/docker pull sedouard/registry:latest
-ExecStart=/usr/bin/docker run --name registry -p 5000:5000 <your_dockerhub_username>/registry:latest -e SETTINGS_FLAVOR=azureblob -e AZURE_STORAGE_ACCOUNT_NAME="<account name>" -e AZURE_STORAGE_ACCOUNT_KEY="<account key>" -e AZURE_STORAGE_CONTAINER=registry
+ExecStart=/usr/bin/docker run --name registry -p 5000:5000 sedouard/registry:latest
 ExecStop=/usr/bin/docker stop registry
 ExecStopPost=/usr/bin/docker kill registry
 ExecStopPost=/usr/bin/docker rm registry
@@ -285,7 +341,7 @@ Global=true
 
 You should replace the `<>` tagged portions with your docker account and azure storage account credentials. It's also possible to expose environment variables by provisioning CoreOS with an `EnvironmentFile` at `etc/environment` and specifying the file for the `EnviornmentFile` key in the `[Service]` section of the unit file.
 
-You can also simply replace these values at deployment time by writing a script that inserts the actual credentials.
+You can also simply replace these values at deployment-time by writing a script that inserts the actual credentials.
 
 Now deploy the registry using `fleetctl`.
 
@@ -310,7 +366,9 @@ Fleet knows to deploy the registry to each node because of hte `Global=true` set
 
 Now that our private registry is up, we can deploy our router image to the cluster via the private registry. This will allow for us to deploy web applications.
 
-First you'll need to build the router. The router is an [nginx](http://nginx.com) server with a configuration file that is dynamically updated from changes in `etcd` using a [confd](https://github.com/kelseyhightower/confd) template in [nginx/templates/apps.tmpl](nginx/templates/apps.tmpl):
+First you'll need to build the router. The router is an [nginx](http://nginx.com) server with a configuration file that is dynamically updated from changes in `etcd` using a [confd](https://github.com/kelseyhightower/confd) template in [nginx_lb_router/templates/apps.tmpl](nginx_lb_router/templates/apps.tmpl).
+
+Be sure to update the `<<>>` fields with your own **public** domain name that you might obtain from [godaddy.com](http://godaddy.com) or [namecheap.com](http://namecheap.com). Ensure there is an A record pointing to your public IP address as mentioned in the **Provisoning** section.
 
 ```
 {{ if ls "/services/web" }}
@@ -355,7 +413,7 @@ First you'll need to build the router. The router is an [nginx](http://nginx.com
 
 server {
     listen       80;
-    server_name  captainkaption.com;
+    server_name  <<YOUR_DOMAIN_NAME>>.com;
 
     location / {
         root   /usr/share/nginx/html;
@@ -378,7 +436,7 @@ Using the above the nginx [`confd`](https://github.com/kelseyhightower/confd) te
 To deploy the nginx router, modify the template with your domain name and build the image:
 
 ```bash
-cd ./router
+cd ./nginx_lb_router
 docker build -t localhost:5000/nginx_lb_router:latest .
 ```
 Note: You **must** use your own domain name.
@@ -386,7 +444,7 @@ Note: You **must** use your own domain name.
 Now to deploy the image you'll have to startup the registry server locally by running the registry docker file and then pushing the image. Note: if you're on boot2docker (Windows and OSX, you'll have to log into the boot2docker vm to do this):
 
 ```bash
-docker run <docker hub username>/<name of docker repo>:latest
+docker run -d --name registry -p 5000:5000 sedouard/registry:latest
 # if you're not on linux, you'll have to ssh into the boot2docker vm
 boot2docker ssh
 # now push the image to azure storage via the local registry server
@@ -400,6 +458,9 @@ Description=Nginx Load Balancer and Router
 After=registry.service
 
 [Service]
+TimeoutStartSec=0
+Restart=always
+RestartSec=10s
 EnvironmentFile=/etc/environment
 ExecStartPre=/usr/bin/docker pull localhost:5000/nginx_lb_router:latest
 ExecStart=/usr/bin/docker run --name router -p 80:80 -p 443:443 -e "HOST_IP=${COREOS_PRIVATE_IPV4}" -e ETCD_PORT=4001 localhost:5000/nginx_lb_router:latest
@@ -415,7 +476,7 @@ This unit file passes the port number of etcd as well as connects the router to 
 To deploy the router on the server just do:
 
 ```fleet
-cd ./router
+cd ./nginx_lb_router
 fleetctl start nginx_lb_router
 ```
 
@@ -439,7 +500,7 @@ This repo comes with a simple Node.js express application to demonstrate how to 
 
 ```
 cd ./example-app
-docker build -t localhost:5000/example-app:latest
+docker build -t localhost:5000/example-app:latest .
 # log into boot2docker, Windows & OSX Only
 boot2docker ssh
 docker push localhost:5000/example-app:latest
@@ -558,7 +619,7 @@ To deploy the sidekick services do:
 cd ./example-app
 fleetctl submit example-app-discovery@.service
 fleetctl start example-app-discovery@1
-fleetclt start example-app-discvoery@2
+fleetctl start example-app-discovery@2
 ```
 
 Notice now with `fleetctl list-units` the services will be running on the same machine as the running service:
@@ -583,7 +644,7 @@ You can check the app is running by `curl`'ing the app address:
 
 ```
 curl http://example-app.captainkaption.com     
-<!DOCTYPE html><html><head><title>Express</title><link rel="stylesheet" href="/stylesheets/style.css"></head><body><h1>Express</h1><p>Welcome to Express</p></body></html>
+<!DOCTYPE html><html><head><title>Fleet Starter!</title><link rel="stylesheet" href="/stylesheets/style.css"></head><body><h1>Fleet Starter!</h1><p>Welcome to Fleet Starter!</p><p>If you're seeing this than you have sucessfully deployed the coreos cluster with fleet</p><p>managing a scalable web application (this one!). To scale me, issue the command:</p><p>fleetctl start example-app@2 or fleetctl start example-app@2 or however many you want</p></body></html>
 ```
 
 Stop an instance of the application notice how the announcer sidekick service also stops. Again, use `docker exec router cat /etc/nginx/conf.d/apps.conf` to confirm that the server pool for `example-app` has shrunk to 1 instance.
@@ -631,8 +692,12 @@ You can confirm the app is still running by curling the url again:
 ```
 # we're still running!
 curl http://example-app.your_domain.com
-<!DOCTYPE html><html><head><title>Express</title><link rel="stylesheet" href="/stylesheets/style.css"></head><body><h1>Express</h1><p>Welcome to Express</p></body></html>
+<!DOCTYPE html><html><head><title>Fleet Starter!</title><link rel="stylesheet" href="/stylesheets/style.css"></head><body><h1>Fleet Starter!</h1><p>Welcome to Fleet Starter!</p><p>If you're seeing this than you have sucessfully deployed the coreos cluster with fleet</p><p>managing a scalable web application (this one!). To scale me, issue the command:</p><p>fleetctl start example-app@2 or fleetctl start example-app@2 or however many you want</p></body></html>
 ```
+
+Here's what the example looks like in the browser:
+
+![](img/ss13.png)
 
 ## Run Your App
 

@@ -14,9 +14,9 @@ storage:
     # Using an external storage driver like this one for azure storage allows to to have
     # a portable registry server independent of the docker demon machine
     azure:
-        accountname: <<STORAGE_ACCOUNT_NAME>>
-        accountkey: <<STORAGE_ACCOUNT_KEY>>
-        container: <<DOCKER_IMAGE_CONTAINER>>
+        accountname: <STORAGE_ACCOUNT_NAME>
+        accountkey: <STORAGE_ACCOUNT_KEY>
+        container: images
 http:
     addr: :5000
     secret: asecretforlocaldevelopment

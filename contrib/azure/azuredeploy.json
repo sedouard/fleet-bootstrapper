@@ -45,6 +45,13 @@
                 "description": "Number of member nodes"
             },
             "defaultValue": "3"
+        },
+        "coreOSChannel": {
+            "type": "string",
+            "metadata": {
+                "description": "CoreOS Release Channel"
+            },
+            "defaultValue": "Stable"
         }
     },
     "variables": {
@@ -55,7 +62,6 @@
         "storageAccountType": "Standard_LRS",
         "imagePublisher": "CoreOS",
         "imageOffer": "CoreOS",
-        "imageSKU": "Stable",
         "vmNamePrefix": "deisNode",
         "virtualNetworkName": "deisvNet",
         "availabilitySetName": "deisAvailabilitySet",
@@ -234,7 +240,7 @@
                             "port": "80",
                             "intervalInSeconds": "5",
                             "numberOfProbes": "2",
-                            "requestPath": "/health-check"
+                            "requestPath": "/"
                         }
                     },
                     {
@@ -244,7 +250,7 @@
                             "port": "443",
                             "intervalInSeconds": "5",
                             "numberOfProbes": "2",
-                            "requestPath": "/health-check"
+                            "requestPath": "/"
                         }
                     }
                 ]
@@ -349,7 +355,7 @@
                     "imageReference": {
                         "publisher": "[variables('imagePublisher')]",
                         "offer": "[variables('imageOffer')]",
-                        "sku": "[variables('imageSKU')]",
+                        "sku": "[parameters('coreOSChannel')]",
                         "version": "latest"
                     },
                     "osDisk": {
