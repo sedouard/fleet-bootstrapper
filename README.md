@@ -275,7 +275,7 @@ Set an A record from your domain pointing to the IP address returned by the `hos
 
 ### Starting the Private Docker Repo
 
-We'll need to create a registry that fleet cna deploy our apps from. To do this we'll use the Azure Storage [adapter]() for the docker registry server in order to keep our image data in one central place.
+We'll need to create a registry that fleet can deploy our apps from. To do this we'll use the Azure Storage [adapter]() for the docker registry server in order to keep our image data in one central place.
 
 Change the file [contrib/azure/config.yaml](contrib/azure/config.yaml) to contain your storage account name, key and the container you would like the registry to store images in. The container will be created by the registry server if it doesn't already exist.
 
